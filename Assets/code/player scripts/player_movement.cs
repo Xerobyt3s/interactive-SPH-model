@@ -12,7 +12,7 @@ public class player_movement : MonoBehaviour
     float movement_speed = 8f;
     [SerializeField] float MovementMultiplier = 10f;
     [SerializeField] float air_mulitplyer = 0.4f;
-    [SerializeField] float gravity = 9.81f;
+    //[SerializeField] float gravity = 9.81f;
 
     [Header("Jumping")]
     [SerializeField] float jump_height = 3f;
