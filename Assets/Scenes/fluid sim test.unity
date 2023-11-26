@@ -152,12 +152,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f3295e4a500ebd342acc8997b2034d74, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  spawnCount: 100
-  spawnSize: {x: 5, y: 5}
-  boundsSize: {x: 10, y: 8}
+  spawnCount: 473
+  spawnSize: {x: 20, y: 10}
+  particleSize: 0.1
+  boundsSize: {x: 20, y: 10}
   gravity: 0
-  collisionDampening: 0.5
+  collisionDampening: 0.7
+  smoothingRadius: 1
   targetDensity: 1
+  pressureMultiplyer: 10
 --- !u!4 &200790215
 Transform:
   m_ObjectHideFlags: 0
