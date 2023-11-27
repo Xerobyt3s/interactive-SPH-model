@@ -152,15 +152,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f3295e4a500ebd342acc8997b2034d74, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  spawnCount: 517
-  spawnSize: {x: 20, y: 10}
-  particleSize: 0.1
-  boundsSize: {x: 20, y: 10}
+  spawnCount: 3686
+  spawnSize: {x: 8.8, y: 6.48}
+  particleSize: 0.05
+  randomness: 0.0025
+  boundsSize: {x: 16, y: 9}
   gravity: 0
-  collisionDampening: 0.5
-  smoothingRadius: 1.2
-  targetDensity: 2.5
-  pressureMultiplyer: 10
+  collisionDampening: 0.1
+  smoothingRadius: 0.3
+  targetDensity: 55
+  pressureMultiplyer: 50
+  mouseForce: 1
+  mouseRadius: 1
 --- !u!4 &200790215
 Transform:
   m_ObjectHideFlags: 0
@@ -237,7 +240,7 @@ Camera:
   far clip plane: 1000
   field of view: 60
   orthographic: 1
-  orthographic size: 5
+  orthographic size: 4.66
   m_Depth: -1
   m_CullingMask:
     serializedVersion: 2

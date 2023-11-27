@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -19,6 +20,7 @@ public class NewBehaviourScript : MonoBehaviour
     public int spawnCount = 10;
     public Vector2 spawnSize = new Vector2(10, 10);
     public float particleSize = 0.1f;
+    public float randomness = 0.0025f;
 
     [Header("Sim Settings")]
     public Vector2 boundsSize = new Vector2(10, 10);
@@ -27,6 +29,10 @@ public class NewBehaviourScript : MonoBehaviour
     public float smoothingRadius = 0.5f;
     public float targetDensity = 1f;
     public float pressureMultiplyer = 1f;
+
+    [Header("input settings")]
+    public float mouseForce = 1f;
+    public float mouseRadius = 1f;
 
     float deltaTime = 0.01f;
     Vector2[] positions;
@@ -38,7 +44,7 @@ public class NewBehaviourScript : MonoBehaviour
 
     void OnDrawGizmos()
     {
-        Gizmos.color = new Color(0, 1, 0, 0.4f);
+        Gizmos.color = UnityEngine.Color.blue;
         Gizmos.DrawWireCube(Vector2.zero, boundsSize);
 
         if (Application.isPlaying)
@@ -50,7 +56,7 @@ public class NewBehaviourScript : MonoBehaviour
         }
         else
         {
-            Gizmos.color = Color.yellow;
+            Gizmos.color = UnityEngine.Color.yellow;
             Gizmos.DrawWireCube(Vector2.zero, spawnSize);
 
             // Calculate the number of particles in each row and column
@@ -75,6 +81,7 @@ public class NewBehaviourScript : MonoBehaviour
                 }
             }
         }
+        
     }
 
     //at the start of the simulation, spawn particles in a grid as close to the target about as possible
@@ -104,6 +111,10 @@ public class NewBehaviourScript : MonoBehaviour
                 float posX = j * spacingX - spawnSize.x / 2 + spacingX / 2;
                 float posY = i * spacingY - spawnSize.y / 2 + spacingY / 2;
 
+                // Add jitter to the position using the randomness variable
+                posX += UnityEngine.Random.Range(-randomness, randomness);
+                posY += UnityEngine.Random.Range(-randomness, randomness);
+
                 // Set the position and initial velocity of the particle
                 positions[index] = new Vector2(posX, posY);
                 predictedPositions[index] = new Vector2(posX, posY);
@@ -118,6 +129,7 @@ public class NewBehaviourScript : MonoBehaviour
             densities[i] = 1;
         }
     }
+    
 
     //convert a position of a particle to cords of the cell it is within
     (int, int) PositionToCellCords(Vector2 position, float radius)
@@ -170,11 +182,33 @@ public class NewBehaviourScript : MonoBehaviour
 
     readonly (int, int)[] cellOffsets = new (int, int)[] { (0, 0), (1, 0), (0, 1), (1, 1), (-1, 0), (0, -1), (-1, -1), (-1, 1), (1, -1) };
 
-    //find all particles in a radius of a point
-    public void FindPointsInRadius(Vector2 center, Action<float, int> delegateFunction)
+    //calculate the smoothing kernal
+    static float SmoothingKernal(float radius, float distance)
     {
-        //find the cell cords of the center
-        (int cellx, int celly) = PositionToCellCords(center, smoothingRadius);
+        if (distance >= radius) return 0;
+
+		float scale = 15 / (math.PI * math.pow(radius, 6));
+		float v = radius - distance;
+		return v * v * v * scale;
+    }
+
+    //calculate the derivative of the smoothing kernal
+    static float SmoothingKernalDerivative(float radius, float distance)
+    {
+        if (distance >= radius) return 0;
+
+		float scale = 15 / (math.pow(radius, 5) * math.PI);
+		float v = radius - distance;
+		return -v * scale;
+    }
+
+    //calculate density
+    float CalculateDensity(Vector2 point)
+    {   
+        float density = 0;
+
+        //find the cell cords of the point
+        (int cellx, int celly) = PositionToCellCords(point, smoothingRadius);
         float radiusSquared = smoothingRadius * smoothingRadius;
 
         //loop over all cells in the radius of the center cell
@@ -190,40 +224,16 @@ public class NewBehaviourScript : MonoBehaviour
                 if (spacialLookup[i].cellKey != cellKey) break;
 
                 int particleIndex = spacialLookup[i].particleIndex;
-                float distanceSquared = (center - positions[particleIndex]).sqrMagnitude;
+                float distance = (point - positions[particleIndex]).magnitude;
 
                 //check if the particle is in the radius
-                if (distanceSquared < radiusSquared)
+                if (distance < smoothingRadius)
                 {
-                    delegateFunction(Mathf.Sqrt(distanceSquared), particleIndex);
+                    //calculate the density
+                    density += SmoothingKernal(smoothingRadius, distance);
                 };
             }
         }
-    }
-
-    //calculate the smoothing kernal
-    static float SmoothingKernal(float radius, float distance)
-    {
-        if (distance >= radius) return 0;
-
-        float volume = math.PI * math.pow(radius, 4) / 6;
-        return (radius - distance) * (radius - distance) / volume;
-    }
-
-    //calculate the derivative of the smoothing kernal
-    static float SmoothingKernalDerivative(float radius, float distance)
-    {
-        if (distance >= radius) return 0;
-        
-        float scale = 12 / (math.pow(radius, 4) * math.PI);
-        return (distance - radius) * scale;
-    }
-
-    //calculate density
-    float CalculateDensity(Vector2 point)
-    {
-        float density = 0;
-        FindPointsInRadius(point, (distance, i) => density += SmoothingKernal(smoothingRadius, distance));
         return density;
     }
 
@@ -233,75 +243,75 @@ public class NewBehaviourScript : MonoBehaviour
         return pressureMultiplyer * (density - targetDensity);
     }
 
-    //calculate pressure shared between two particles
-    float CalculateSharedPressure(float density1, float density2)
-    {   
-        return (CalculatePressure(density1) + CalculatePressure(density2)) / 2;
-    }
-
     Vector2 CalculatePressureForce(int particleIndex)
     {
         Vector2 force = Vector2.zero;
-        
 
-        FindPointsInRadius(positions[particleIndex], (distance, i) =>
+        Vector2 point = predictedPositions[particleIndex];
+
+        //find the cell cords of the point
+        (int cellx, int celly) = PositionToCellCords(point, smoothingRadius);
+        float radiusSquared = smoothingRadius * smoothingRadius;
+
+        //loop over all cells in the radius of the center cell
+        foreach ((int offsetx, int offsety) in cellOffsets)
         {
-            if (particleIndex != i)
+            uint cellKey = GetKeyFromHash(HashCell(cellx + offsetx, celly + offsety));
+            int start = startIndecies[cellKey];
+
+            //loop over all particles in the cell
+            for (int i = start; i < spacialLookup.Length; i++)
             {
-                Vector2 offset = positions[i] - positions[particleIndex];
-                Vector2 direction = distance == 0 ? new Vector2(0, 0) : offset / distance;
+                //break if the cell key changes
+                if (spacialLookup[i].cellKey != cellKey) break;
 
-                float pressure = SmoothingKernalDerivative(smoothingRadius, distance);
-                float density = densities[i];
-                float sharedPressure = CalculateSharedPressure(density, densities[particleIndex]);
-                force += sharedPressure * pressure * direction / density;
+                int _particleIndex = spacialLookup[i].particleIndex;
+                Vector2 offsetToNeighbor = predictedPositions[_particleIndex] - point;
+                float distanceSquared = math.dot(offsetToNeighbor, offsetToNeighbor); 
+
+                //check if the particle is in the radius
+                if (distanceSquared > radiusSquared) continue;
+                   
+                //calculate the force
+                float distance = math.sqrt(distanceSquared);
+                Vector2 direction = distance == 0 ? new Vector2(0, 0) : offsetToNeighbor.normalized;
+
+                float pressure = CalculatePressure(densities[particleIndex]);
+                float neighborDensity = densities[_particleIndex];
+                float neighborPressure = CalculatePressure(neighborDensity);
+                float sharedPressure = (pressure + neighborPressure) * 0.5f;
+                force += sharedPressure * SmoothingKernalDerivative(smoothingRadius, distance) * direction / neighborDensity;
             }
-        });
-
-        // for (int otherParticleIndex = 0; otherParticleIndex < positions.Length; otherParticleIndex++)
-        // {
-        //     if (particleIndex == otherParticleIndex) continue;
-
-        //     Vector2 offset = positions[otherParticleIndex] - positions[particleIndex];
-        //     float distance = offset.magnitude;
-        //     Vector2 direction = distance == 0 ? new Vector2(0, 0) : offset / distance;
-           
-        //     float pressure = SmoothingKernalDerivative(smoothingRadius, distance);
-        //     float density = densities[otherParticleIndex];
-        //     float sharedPressure = CalculateSharedPressure(density, densities[particleIndex]);
-        //     force += sharedPressure * pressure * direction / density;
-        // }
-        
+        }
         return force;
     }
 
     //check and resolve collisions with bounds
     void CheckCollisions()
     {
-        float halfParticleSize = particleSize / 2f;
-
         Parallel.For(0, positions.Length, i =>
         {
-            if (positions[i].x - halfParticleSize < -boundsSize.x / 2)
-            {
-                positions[i].x = -boundsSize.x / 2 + halfParticleSize;
-                velocitys[i].x *= -collisionDampening;
-            }
-            if (positions[i].x + halfParticleSize > boundsSize.x / 2)
-            {
-                positions[i].x = boundsSize.x / 2 - halfParticleSize;
-                velocitys[i].x *= -collisionDampening;
-            }
-            if (positions[i].y - halfParticleSize < -boundsSize.y / 2)
-            {
-                positions[i].y = -boundsSize.y / 2 + halfParticleSize;
-                velocitys[i].y *= -collisionDampening;
-            }
-            if (positions[i].y + halfParticleSize > boundsSize.y / 2)
-            {
-                positions[i].y = boundsSize.y / 2 - halfParticleSize;
-                velocitys[i].y *= -collisionDampening;
-            }
+            float2 pos = positions[i];
+	        float2 vel = velocitys[i];
+
+	        // Keep particle inside bounds
+	        float2 halfSize = boundsSize * 0.5f;
+	        float2 edgeDst = halfSize - math.abs(pos);
+
+	        if (edgeDst.x <= 0)
+	        {
+		        pos.x = halfSize.x * math.sign(pos.x);
+		        vel.x *= -1 * collisionDampening;
+	        }
+	        if (edgeDst.y <= 0)
+	        {
+		        pos.y = halfSize.y * math.sign(pos.y);
+		        vel.y *= -1 * collisionDampening;
+	        }
+
+            positions[i] = pos;
+            velocitys[i] = vel;
+
         });
     }
 
@@ -312,7 +322,10 @@ public class NewBehaviourScript : MonoBehaviour
         // Update velocitys
         Parallel.For(0, velocitys.Length, i =>
         {
-            velocitys[i] += gravity * deltaTime * Vector2.down;
+            Vector2 accel = Vector2.zero;
+            accel += gravity * Vector2.down;
+
+            velocitys[i] += accel * deltaTime;
             predictedPositions[i] = positions[i] + velocitys[i] / 120f;
         });
 
@@ -351,13 +364,8 @@ public class NewBehaviourScript : MonoBehaviour
 
         SimulationStep();
 
-        //check density at mouse position and log it
-        if (Input.GetMouseButton(0))
-        {
-            Vector2 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-            float density = CalculateDensity(mousePos);
-            Debug.Log(density);
-        }
+      
+        
     }
 
 }
