@@ -133,6 +133,7 @@ GameObject:
   m_Component:
   - component: {fileID: 200790215}
   - component: {fileID: 200790214}
+  - component: {fileID: 200790216}
   m_Layer: 0
   m_Name: simulation
   m_TagString: Untagged
@@ -152,18 +153,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f3295e4a500ebd342acc8997b2034d74, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  spawnCount: 3686
-  spawnSize: {x: 8.8, y: 6.48}
-  particleSize: 0.05
-  randomness: 0.0025
   boundsSize: {x: 16, y: 9}
   gravity: 0
-  collisionDampening: 0.1
-  smoothingRadius: 0.3
+  collisionDampening: 0.95
+  smoothingRadius: 0.35
   targetDensity: 55
-  pressureMultiplyer: 50
+  pressureMultiplyer: 30
+  nearPressureMultiplyer: 5
+  viscosityMultiplyer: 0.06
+  iterationsPerFrame: 1
   mouseForce: 1
-  mouseRadius: 1
+  mouseRadius: 2
+  initializer: {fileID: 200790216}
 --- !u!4 &200790215
 Transform:
   m_ObjectHideFlags: 0
@@ -179,6 +180,22 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &200790216
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 200790213}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f6a89e0edf8af744a9ca6c58462d14ed, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  spawnCount: 4000
+  spawnSize: {x: 8, y: 6}
+  particleSize: 0.035
+  randomness: 0.0025
 --- !u!1 &1108905939
 GameObject:
   m_ObjectHideFlags: 0
@@ -240,7 +257,7 @@ Camera:
   far clip plane: 1000
   field of view: 60
   orthographic: 1
-  orthographic size: 4.66
+  orthographic size: 4.6
   m_Depth: -1
   m_CullingMask:
     serializedVersion: 2
