@@ -246,7 +246,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f6a89e0edf8af744a9ca6c58462d14ed, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  particleCount: 16000
+  particleCount: 4000
   initialVelocity: {x: 0, y: 0}
   spawnCentre: {x: 0, y: 0}
   spawnSize: {x: 7, y: 7}
@@ -264,18 +264,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ba511dbff85a9fa4095dae989caa0857, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  run: 1
   boundsSize: {x: 16, y: 9}
-  gravity: 0
+  gravity: 12
   collisionDampening: 0.95
   smoothingRadius: 0.35
-  targetDensity: 2.5
-  pressureMultiplyer: 30
-  nearPressureMultiplyer: 2
-  viscosityMultiplyer: 0.2
-  iterationsPerFrame: 7
-  mouseForce: 10
-  mouseRadius: 7
+  targetDensity: 55
+  pressureMultiplyer: 500
+  nearPressureMultiplyer: 18
+  viscosityMultiplyer: 0.06
+  iterationsPerFrame: 3
+  mouseForce: 2
+  mouseRadius: 90
   initializer: {fileID: 2023859845}
   shader: {fileID: 7200000, guid: d0ebc2e0f2545a44d82fd435a44661a7, type: 3}
   display: {fileID: 2023859848}

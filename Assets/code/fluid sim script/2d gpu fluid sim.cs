@@ -3,8 +3,9 @@ using Unity.Mathematics;
 
 public class Gpu_Fluid_Sim : MonoBehaviour
 {
+    public event System.Action SimulationStepCompleted;
+
     [Header("Sim Settings")]
-    public bool run;
     public Vector2 boundsSize = new Vector2(10, 10);
     public float gravity = 9.81f;
     public float collisionDampening = 0.5f;
@@ -62,11 +63,12 @@ public class Gpu_Fluid_Sim : MonoBehaviour
         shader.SetFloat("mouseRadius", mouseRadius);
         shader.SetVector("boundsSize", boundsSize);
 
-        shader.SetFloat("nearDensityKernalConstant", 10 / (Mathf.PI * Mathf.Pow(smoothingRadius, 5)));
-        shader.SetFloat("nearDensityKernalDerivativeConstant", 30 / (Mathf.Pow(smoothingRadius, 5) * Mathf.PI));
-        shader.SetFloat("harshKernalConstant", 6 / (Mathf.PI * Mathf.Pow(smoothingRadius, 4)));
-        shader.SetFloat("harshKernalDerivativeConstant", 12 / (Mathf.Pow(smoothingRadius, 4) * Mathf.PI));
-        shader.SetFloat("gentalKernalConstant", 4 / (Mathf.PI * Mathf.Pow(smoothingRadius, 8)));
+        // Poly6 and Spiky kernel scaling factors:
+        shader.SetFloat("Poly6ScalingFactor", 4 / (Mathf.PI * Mathf.Pow(smoothingRadius, 8)));
+        shader.SetFloat("SpikyPow2ScalingFactor", 6 / (Mathf.PI * Mathf.Pow(smoothingRadius, 4)));
+        shader.SetFloat("SpikyPow3ScalingFactor", 10 / (Mathf.PI * Mathf.Pow(smoothingRadius, 5)));
+        shader.SetFloat("SpikyPow2DerivativeScalingFactor", 12 / (Mathf.Pow(smoothingRadius, 4) * Mathf.PI));
+        shader.SetFloat("SpikyPow3DerivativeScalingFactor", 30 / (Mathf.Pow(smoothingRadius, 5) * Mathf.PI));
 
         // Mouse interaction settings:
         Vector2 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
@@ -129,18 +131,18 @@ public class Gpu_Fluid_Sim : MonoBehaviour
     }
 
     // Update is called once per frame
-    void FixedUpdate()
+    void Update()
     {
         RunFrame();
     }
 
     void RunFrame()
     {
-        float timeStep = Time.fixedDeltaTime / iterationsPerFrame;
+        float timeStep = Time.deltaTime / iterationsPerFrame;
 
         UpdateComputeVariables(timeStep);
 
-        for (int i = 0; i < iterationsPerFrame; i++) RunIteration();
+        for (int i = 0; i < iterationsPerFrame; i++) RunIteration(); SimulationStepCompleted?.Invoke();
     }
 
     void RunIteration()
