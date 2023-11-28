@@ -21,7 +21,7 @@ public class Gpu_Fluid_Sim : MonoBehaviour
 
     [Header("external scripts")]
     public Initializer initializer;
-    Initializer.InitializerData particleData;
+    Initializer.ParticleSpawnData particleData;
     public ComputeShader shader;
     public ParticleDisplay2D display;
 
@@ -29,7 +29,7 @@ public class Gpu_Fluid_Sim : MonoBehaviour
 
     //particle varialbles
     int particleCount;
-    public ComputeBuffer positionsBuffer { get; private set;}
+    public ComputeBuffer PositionsBuffer { get; private set;}
     ComputeBuffer predictedPositionBuffer;
     public ComputeBuffer VelocitiesBuffer { get; private set;}
     public ComputeBuffer DensitiesBuffer { get; private set;}
@@ -39,25 +39,25 @@ public class Gpu_Fluid_Sim : MonoBehaviour
     GPUSort gpuSort;
 
     //kernal id
-    const int OutsideForce = 0;
-    const int UpdateSpatialLookUp = 1;
-    const int CalculateDensities = 2;
-    const int CalculatePressureForce = 3;
-    const int CalculateViscosity = 4;
-    const int UpdateParticlePosition = 5;
+    const int OutsideForceKernel = 0;
+    const int UpdateSpatialLookUpKernel = 1;
+    const int CalculateDensitiesKernel = 2;
+    const int CalculatePressureForceKernel = 3;
+    const int CalculateViscosityKernel = 4;
+    const int UpdateParticlePositionKernel = 5;
 
 
     void UpdateComputeVariables(float timeStep)
     {
-        shader.SetFloat("particleCount", particleCount);
+        shader.SetInt("particleCount", particleCount);
         shader.SetFloat("deltaTime", timeStep);
         shader.SetFloat("gravity", gravity);
         shader.SetFloat("collisionDampening", collisionDampening);
         shader.SetFloat("smoothingRadius", smoothingRadius);
         shader.SetFloat("targetDensity", targetDensity);
-        shader.SetFloat("pressureMultiplyer", pressureMultiplyer);
-        shader.SetFloat("nearPressureMultiplyer", nearPressureMultiplyer);
-        shader.SetFloat("viscosityMultiplyer", viscosityMultiplyer);
+        shader.SetFloat("pressureMultiplier", pressureMultiplyer);
+        shader.SetFloat("nearPressureMultiplier", nearPressureMultiplyer);
+        shader.SetFloat("viscosityMultiplier", viscosityMultiplyer);
         shader.SetFloat("mouseForce", mouseForce);
         shader.SetFloat("mouseRadius", mouseRadius);
         shader.SetVector("boundsSize", boundsSize);
@@ -83,14 +83,14 @@ public class Gpu_Fluid_Sim : MonoBehaviour
         shader.SetFloat("mouseRadius", mouseRadius);
     }
 
-    void SetBufferData(Initializer.InitializerData particleData)
+    void SetBufferData(Initializer.ParticleSpawnData spawnData)
     {
-        float2[] allPoints = new float2[particleData.positions.Length];
-        System.Array.Copy(particleData.positions, allPoints, particleData.positions.Length);
+        float2[] allPoints = new float2[spawnData.positions.Length];
+        System.Array.Copy(spawnData.positions, allPoints, spawnData.positions.Length);
 
-        positionsBuffer.SetData(allPoints);
+        PositionsBuffer.SetData(allPoints);
         predictedPositionBuffer.SetData(allPoints);
-        VelocitiesBuffer.SetData(particleData.velocities);
+        VelocitiesBuffer.SetData(spawnData.velocities);
     }
 
     // Start is called before the first frame update
@@ -104,7 +104,7 @@ public class Gpu_Fluid_Sim : MonoBehaviour
 
         particleCount = particleData.positions.Length;
 
-        positionsBuffer = ComputeHelper.CreateStructuredBuffer<float2>(particleCount);
+        PositionsBuffer = ComputeHelper.CreateStructuredBuffer<float2>(particleCount);
         predictedPositionBuffer = ComputeHelper.CreateStructuredBuffer<float2>(particleCount);
         VelocitiesBuffer = ComputeHelper.CreateStructuredBuffer<float2>(particleCount);
         DensitiesBuffer = ComputeHelper.CreateStructuredBuffer<float2>(particleCount);
@@ -113,12 +113,12 @@ public class Gpu_Fluid_Sim : MonoBehaviour
 
         SetBufferData(particleData);
 
-        ComputeHelper.SetBuffer(shader, positionsBuffer, "positions", OutsideForce, UpdateParticlePosition);
-        ComputeHelper.SetBuffer(shader, predictedPositionBuffer, "predictedPositions", OutsideForce, UpdateSpatialLookUp, CalculateDensities, CalculatePressureForce, CalculateViscosity);
-        ComputeHelper.SetBuffer(shader, spacialLookUp, "spacialLookUp", UpdateSpatialLookUp, CalculateDensities, CalculatePressureForce, CalculateViscosity);
-        ComputeHelper.SetBuffer(shader, startIndecies, "startIndecies", UpdateSpatialLookUp, CalculateDensities, CalculatePressureForce, CalculateViscosity);
-        ComputeHelper.SetBuffer(shader, DensitiesBuffer, "densities", CalculateDensities, CalculatePressureForce, CalculateViscosity);
-        ComputeHelper.SetBuffer(shader, VelocitiesBuffer, "velocities", OutsideForce, CalculatePressureForce, CalculateViscosity, UpdateParticlePosition);
+        ComputeHelper.SetBuffer(shader, PositionsBuffer, "positions", OutsideForceKernel, UpdateParticlePositionKernel);
+        ComputeHelper.SetBuffer(shader, predictedPositionBuffer, "predictedPositions", OutsideForceKernel, UpdateSpatialLookUpKernel, CalculateDensitiesKernel, CalculatePressureForceKernel, CalculateViscosityKernel);
+        ComputeHelper.SetBuffer(shader, spacialLookUp, "spacialLookUp", UpdateSpatialLookUpKernel, CalculateDensitiesKernel, CalculatePressureForceKernel, CalculateViscosityKernel);
+        ComputeHelper.SetBuffer(shader, startIndecies, "startIndecies", UpdateSpatialLookUpKernel, CalculateDensitiesKernel, CalculatePressureForceKernel, CalculateViscosityKernel);
+        ComputeHelper.SetBuffer(shader, DensitiesBuffer, "densities", CalculateDensitiesKernel, CalculatePressureForceKernel, CalculateViscosityKernel);
+        ComputeHelper.SetBuffer(shader, VelocitiesBuffer, "velocities", OutsideForceKernel, CalculatePressureForceKernel, CalculateViscosityKernel, UpdateParticlePositionKernel);
 
         shader.SetInt("particleCount", particleCount);
 
@@ -131,11 +131,7 @@ public class Gpu_Fluid_Sim : MonoBehaviour
     // Update is called once per frame
     void FixedUpdate()
     {
-        if (run)
-        {
-            RunFrame();
-        }
-        
+        RunFrame();
     }
 
     void RunFrame()
@@ -149,18 +145,18 @@ public class Gpu_Fluid_Sim : MonoBehaviour
 
     void RunIteration()
     {
-        ComputeHelper.Dispatch(shader, particleCount, kernelIndex: OutsideForce);
-        ComputeHelper.Dispatch(shader, particleCount, kernelIndex: UpdateSpatialLookUp);
+        ComputeHelper.Dispatch(shader, particleCount, kernelIndex: OutsideForceKernel);
+        ComputeHelper.Dispatch(shader, particleCount, kernelIndex: UpdateSpatialLookUpKernel);
         gpuSort.SortAndCalculateOffsets();
-        ComputeHelper.Dispatch(shader, particleCount, kernelIndex: CalculateDensities);
-        ComputeHelper.Dispatch(shader, particleCount, kernelIndex: CalculatePressureForce);
-        ComputeHelper.Dispatch(shader, particleCount, kernelIndex: CalculateViscosity);
-        ComputeHelper.Dispatch(shader, particleCount, kernelIndex: UpdateParticlePosition);
+        ComputeHelper.Dispatch(shader, particleCount, kernelIndex: CalculateDensitiesKernel);
+        ComputeHelper.Dispatch(shader, particleCount, kernelIndex: CalculatePressureForceKernel);
+        ComputeHelper.Dispatch(shader, particleCount, kernelIndex: CalculateViscosityKernel);
+        ComputeHelper.Dispatch(shader, particleCount, kernelIndex: UpdateParticlePositionKernel);
     }
 
     void OnDestroy()
     {
-        ComputeHelper.Release(positionsBuffer, predictedPositionBuffer, VelocitiesBuffer, DensitiesBuffer, spacialLookUp, startIndecies);
+        ComputeHelper.Release(PositionsBuffer, predictedPositionBuffer, VelocitiesBuffer, DensitiesBuffer, spacialLookUp, startIndecies);
     }
 
     void OnDrawGizmos()

@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 0}
-  m_IndirectSpecularColor: {r: 0.37311924, g: 0.38073963, b: 0.3587269, a: 1}
+  m_IndirectSpecularColor: {r: 0.37311953, g: 0.38074014, b: 0.3587274, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -184,11 +184,11 @@ Camera:
   far clip plane: 1000
   field of view: 60
   orthographic: 1
-  orthographic size: 4.6
+  orthographic size: 5
   m_Depth: -1
   m_CullingMask:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 4294967295
   m_RenderingPath: -1
   m_TargetTexture: {fileID: 0}
   m_TargetDisplay: 0
@@ -246,10 +246,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f6a89e0edf8af744a9ca6c58462d14ed, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  spawnCount: 4000
-  spawnSize: {x: 8, y: 6}
-  particleSize: 0
-  randomness: 0.0025
+  particleCount: 16000
+  initialVelocity: {x: 0, y: 0}
+  spawnCentre: {x: 0, y: 0}
+  spawnSize: {x: 7, y: 7}
+  jitterStr: 0.0025
+  showSpawnBoundsGizmos: 1
 --- !u!114 &2023859846
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -262,17 +264,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ba511dbff85a9fa4095dae989caa0857, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  run: 1
   boundsSize: {x: 16, y: 9}
   gravity: 0
   collisionDampening: 0.95
   smoothingRadius: 0.35
-  targetDensity: 1.5
-  pressureMultiplyer: 4
+  targetDensity: 2.5
+  pressureMultiplyer: 30
   nearPressureMultiplyer: 2
-  viscosityMultiplyer: 0.06
-  iterationsPerFrame: 3
-  mouseForce: 1
-  mouseRadius: 2
+  viscosityMultiplyer: 0.2
+  iterationsPerFrame: 7
+  mouseForce: 10
+  mouseRadius: 7
   initializer: {fileID: 2023859845}
   shader: {fileID: 7200000, guid: d0ebc2e0f2545a44d82fd435a44661a7, type: 3}
   display: {fileID: 2023859848}
@@ -305,11 +308,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   mesh: {fileID: 10210, guid: 0000000000000000e000000000000000, type: 0}
   shader: {fileID: 4800000, guid: cc7d22b2494e64d3a8230d8b24af7f2d, type: 3}
-  scale: 0.08
+  scale: 0.045
   colourMap:
     serializedVersion: 2
-    key0: {r: 1, g: 1, b: 1, a: 1}
-    key1: {r: 1, g: 1, b: 1, a: 1}
+    key0: {r: 0.046485543, g: 0, b: 0.9811321, a: 1}
+    key1: {r: 0.55998576, g: 0.646014, b: 0.9811321, a: 1}
     key2: {r: 0, g: 0, b: 0, a: 0}
     key3: {r: 0, g: 0, b: 0, a: 0}
     key4: {r: 0, g: 0, b: 0, a: 0}
@@ -337,7 +340,7 @@ MonoBehaviour:
     m_NumColorKeys: 2
     m_NumAlphaKeys: 2
   gradientResolution: 64
-  velocityDisplayMax: 6.5
+  velocityDisplayMax: 7
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

@@ -6,7 +6,7 @@
 //#pragma kernel CalculateSurfaceTensionForce
 #pragma kernel UpdateParticlePosition
 
-const int Threads = 64;
+static const int3 Threads = int3(8, 8, 1);
 
 RWStructuredBuffer<float2> positions;
 RWStructuredBuffer<float2> predictedPositions;
@@ -31,7 +31,6 @@ const float viscosityMultiplier;
 const float2 boundsSize;
 const float2 mousePosition;
 const float mouseInputStrength;
-const float mouseForce;
 const float mouseRadius;
 
 //polynomial constants
@@ -123,7 +122,7 @@ uint GetKeyFromHash(uint hash)
 }
 
 // Update the spacial lookup array to reflect the current positions of the particles
-[numthreads(64, 1, 1)]
+[numthreads(8, 8, 1)]
 void UpdateSpatialLookUp (uint3 id : SV_DispatchThreadID)
 {
 	if (id.x >= particleCount) return;
@@ -157,10 +156,9 @@ float2 CalculateDensity(float2 position)
         int searchIndex = startIndecies[cellKey];
 
         //loop over all particles in the cell
-        while (searchIndex < particleCount)
+        for (int index = searchIndex; index < (int)particleCount; index++)
         {
-            uint3 data = spacialLookUp[searchIndex];
-            searchIndex++;
+            uint3 data = spacialLookUp[index];
 
             //break if the cell key changes
             if (data[2] != cellKey) break;
@@ -169,7 +167,7 @@ float2 CalculateDensity(float2 position)
 
 
             int particleIndex = data[0];
-            float offset = (predictedPositions[particleIndex] - position);
+            float2 offset = (predictedPositions[particleIndex] - position);
             float distance = sqrt(dot(offset, offset));
 
             //check if the particle is in the radius
@@ -184,7 +182,7 @@ float2 CalculateDensity(float2 position)
     return float2(density, nearDensity);
 }
 
-[numthreads(64, 1, 1)]
+[numthreads(8, 8, 1)]
 void CalculateDensities (uint3 id : SV_DispatchThreadID)
 {
 	if (id.x >= particleCount) return;
@@ -195,7 +193,7 @@ void CalculateDensities (uint3 id : SV_DispatchThreadID)
 
 float CalculatePressure(float density)
 {
-    return pressureMultiplier * (density - targetDensity);
+    return  pressureMultiplier * (density - targetDensity);
 }
 
 float CalculateNearPressure(float nearDensity)
@@ -203,22 +201,20 @@ float CalculateNearPressure(float nearDensity)
     return nearPressureMultiplier * nearDensity;
 }
 
-[numthreads(64, 1, 1)]
+[numthreads(8, 8, 1)]
 void CalculatePressureForce (uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= particleCount) return;
-
-    float2 force = 0;
-
-    float position = predictedPositions[id.x];
 
     //variables of the particle
     float density = densities[0][id.x];
     float nearDensity = densities[1][id.x];
     float pressure = CalculatePressure(density);
     float nearPressure = CalculateNearPressure(nearDensity);
+    float2 force = 0;
 
     //find the cell cords of the point
+    float2 position = predictedPositions[id.x];
     int2 cell = PositionToCellCords(position, smoothingRadius);
     float radiusSquared = smoothingRadius * smoothingRadius;
 
@@ -230,16 +226,16 @@ void CalculatePressureForce (uint3 id : SV_DispatchThreadID)
         int searchIndex = startIndecies[cellKey];
 
         //loop over all particles in the cell
-        while (searchIndex < particleCount)
+        for (int index = searchIndex; index < (int)particleCount; index++)
         {
-            searchIndex++;
+            uint3 data = spacialLookUp[index];
 
             //break if the cell key changes
-            if (spacialLookUp[searchIndex][2] != cellKey) break;
+            if (data[2] != cellKey) break;
 
-            if (spacialLookUp[searchIndex][1] != hash)    continue;
+            if (data[1] != hash)    continue;
 
-            int NeighbourParticleIndex = spacialLookUp[searchIndex][0];
+            int NeighbourParticleIndex = data[0];
 
             if (NeighbourParticleIndex == id.x) continue;
 
@@ -258,8 +254,8 @@ void CalculatePressureForce (uint3 id : SV_DispatchThreadID)
             float neighborPressure = CalculatePressure(neighborDensity);
             float neighborNearPressure = CalculateNearPressure(neighborNearDensity);
             
-            float sharedPressure = (pressure + neighborPressure) * 0.5f;
-            float sharedNearPressure = (nearPressure + neighborNearPressure) * 0.5f;
+            float sharedPressure = (pressure + neighborPressure) * 0.5;
+            float sharedNearPressure = (nearPressure + neighborNearPressure) * 0.5;
 
             force += sharedPressure * HarshSmoothingKernalDerivative(smoothingRadius, distance) * direction / neighborDensity;
             force += sharedNearPressure * NearDensitySmoothingKernalDerivative(smoothingRadius, distance) * direction / neighborNearDensity;
@@ -269,7 +265,7 @@ void CalculatePressureForce (uint3 id : SV_DispatchThreadID)
     velocities[id.x] += pressureAcceleration * deltaTime;
 }
 
-[numthreads(64, 1, 1)]
+[numthreads(8, 8, 1)]
 void CalculateViscosity (uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= particleCount) return;
@@ -366,7 +362,7 @@ float2 OutsideForces(float2 position, float2 velocity)
 	return gravityAccel;
 }
 
-[numthreads(64, 1, 1)]
+[numthreads(8, 8, 1)]
 void OutsideForce(uint3 id : SV_DispatchThreadID)
 {
 	if (id.x >= particleCount) return;
@@ -380,7 +376,7 @@ void OutsideForce(uint3 id : SV_DispatchThreadID)
 }
 
 // Update the positions of the particles
-[numthreads(64, 1, 1)]
+[numthreads(8, 8, 1)]
 void UpdateParticlePosition(uint3 id : SV_DispatchThreadID)
 {
 	if (id.x >= particleCount) return;

@@ -19,11 +19,11 @@ public class ParticleDisplay2D : MonoBehaviour
 	public void Init(Gpu_Fluid_Sim sim)
 	{
 		material = new Material(shader);
-		material.SetBuffer("Positions2D", sim.positionsBuffer);
+		material.SetBuffer("Positions2D", sim.PositionsBuffer);
 		material.SetBuffer("Velocities", sim.VelocitiesBuffer);
 		material.SetBuffer("DensityData", sim.DensitiesBuffer);
 
-		argsBuffer = ComputeHelper.CreateArgsBuffer(mesh, sim.positionsBuffer.count);
+		argsBuffer = ComputeHelper.CreateArgsBuffer(mesh, sim.PositionsBuffer.count);
 		bounds = new Bounds(Vector3.zero, Vector3.one * 10000);
 	}
 

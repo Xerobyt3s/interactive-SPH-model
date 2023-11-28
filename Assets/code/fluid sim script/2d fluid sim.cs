@@ -24,7 +24,7 @@ public class Fluid_Sim : MonoBehaviour
 
     [Header("external scripts")]
     public Initializer initializer;
-    Initializer.InitializerData spawnData;
+    Initializer.ParticleSpawnData spawnData;
 
     float deltaTime = 0.01f;
     Vector2[] positions;
@@ -36,7 +36,7 @@ public class Fluid_Sim : MonoBehaviour
     float particleSize;
 
     //retrive data from initializer
-    void SetInitialData(Initializer.InitializerData spawnData)
+    void SetInitialData(Initializer.ParticleSpawnData spawnData)
     {
         positions = new Vector2[spawnData.positions.Length];
         predictedPositions = new Vector2[spawnData.positions.Length];
@@ -44,7 +44,6 @@ public class Fluid_Sim : MonoBehaviour
         densities = new float[2, spawnData.positions.Length];
         spacialLookup = new Entry[spawnData.positions.Length];
         startIndecies = new int[spawnData.positions.Length];
-        particleSize = spawnData.particleSize;
 
         for (int i = 0; i < spawnData.positions.Length; i++)
         {
