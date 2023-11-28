@@ -177,7 +177,7 @@ public class Fluid_Sim : MonoBehaviour
         float value = math.max(0, radius * radius - distance * distance);
         return value * value * value / volume;
     }
-
+    
     //calculate density
     float[] CalculateDensity(Vector2 point)
     {   
@@ -201,7 +201,7 @@ public class Fluid_Sim : MonoBehaviour
                 if (spacialLookup[i].cellKey != cellKey) break;
 
                 int particleIndex = spacialLookup[i].particleIndex;
-                float distance = (point - positions[particleIndex]).magnitude;
+                float distance = (point - predictedPositions[particleIndex]).magnitude;
 
                 //check if the particle is in the radius
                 if (distance < smoothingRadius)
@@ -245,7 +245,8 @@ public class Fluid_Sim : MonoBehaviour
         //loop over all cells in the radius of the center cell
         foreach ((int offsetx, int offsety) in cellOffsets)
         {
-            uint cellKey = GetKeyFromHash(HashCell(cellx + offsetx, celly + offsety));
+            uint hash = HashCell(cellx + offsetx, celly + offsety);
+            uint cellKey = GetKeyFromHash(hash);
             int start = startIndecies[cellKey];
 
             //loop over all particles in the cell
