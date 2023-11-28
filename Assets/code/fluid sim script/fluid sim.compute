@@ -130,6 +130,7 @@ void UpdateSpatialLookUp (uint3 id : SV_DispatchThreadID)
 
 	// Reset offsets
 	startIndecies[id.x] = particleCount;
+    
 	// Update index buffer
 	uint index = id.x;
 	int2 cell = PositionToCellCords(predictedPositions[index], smoothingRadius);
@@ -339,7 +340,7 @@ void CheckCollisions(uint particleIndex)
     velocities[particleIndex] = vel;
 }
 
-float2 OutsideForce(float2 position, float2 velocity)
+float2 OutsideForces(float2 position, float2 velocity)
 {
 	// Gravity constant as a vector
 	float2 gravityAccel = float2(0, -gravity);
@@ -371,7 +372,7 @@ void OutsideForce(uint3 id : SV_DispatchThreadID)
 	if (id.x >= particleCount) return;
 
 	// apply outside forces such as gravity and the mouse interaction
-	velocities[id.x] += OutsideForce(positions[id.x], velocities[id.x]) * deltaTime;
+	velocities[id.x] += OutsideForces(positions[id.x], velocities[id.x]) * deltaTime;
 
 	// update predicted positions
 	const float predictionFactor = 1 / 120.0;

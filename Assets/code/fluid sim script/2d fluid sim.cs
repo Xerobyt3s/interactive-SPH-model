@@ -1,17 +1,7 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Drawing;
-using System.IO;
-using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Unity.Mathematics;
-using Unity.VisualScripting;
-using Unity.VisualScripting.Dependencies.NCalc;
-using UnityEditor.Experimental.GraphView;
 using UnityEngine;
-using UnityEngine.UIElements;
 
 
 
@@ -156,7 +146,7 @@ public class Fluid_Sim : MonoBehaviour
     {
         if (distance >= radius) return 0;
 
-		float scale = 15 / (math.PI * math.pow(radius, 6));
+		float scale = 6 / (Mathf.PI * Mathf.Pow(radius, 4));
 		float v = radius - distance;
 		return v * v * v * scale;
     }
@@ -166,16 +156,15 @@ public class Fluid_Sim : MonoBehaviour
     {
         if (distance >= radius) return 0;
 
-		float scale = 15 / (math.pow(radius, 5) * math.PI);
+		float scale = 12 / (Mathf.Pow(radius, 4) * Mathf.PI);
 		float v = radius - distance;
 		return -v * scale;
     }
 
     static float GentalSmoothingKernal(float radius, float distance)
     {
-        float volume = math.PI * math.pow(radius, 8) / 4;
         float value = math.max(0, radius * radius - distance * distance);
-        return value * value * value / volume;
+        return value * value * value * (4 / (Mathf.PI * Mathf.Pow(radius, 8)));
     }
     
     //calculate density
@@ -423,7 +412,7 @@ public class Fluid_Sim : MonoBehaviour
 
     void Update()
     {
-        deltaTime = Time.fixedDeltaTime;
+        deltaTime = Time.deltaTime /iterationsPerFrame;
         
         for (int i = 0; i < iterationsPerFrame; i++)
         {

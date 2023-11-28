@@ -18,34 +18,12 @@ public class Initializer : MonoBehaviour
         {
             Gizmos.color = UnityEngine.Color.yellow;
             Gizmos.DrawWireCube(Vector2.zero, spawnSize);
-
-            // Calculate the number of particles in each row and column
-            int particlesPerRow = Mathf.CeilToInt(Mathf.Sqrt(spawnCount));
-            int particlesPerColumn = Mathf.CeilToInt((float)spawnCount / particlesPerRow);
-
-            // Calculate the spacing between particles in the grid
-            float spacingX = spawnSize.x / particlesPerRow;
-            float spacingY = spawnSize.y / particlesPerColumn;
-
-            // Preview particles in a grid
-            for (int i = 0; i < particlesPerColumn; i++)
-            {
-                for (int j = 0; j < particlesPerRow; j++)
-                {
-                    // Calculate the position of the particle in the grid
-                    float posX = j * spacingX - spawnSize.x / 2 + spacingX / 2;
-                    float posY = i * spacingY - spawnSize.y / 2 + spacingY / 2;
-
-                    // Preview the particle as a wire sphere
-                    Gizmos.DrawWireSphere(new Vector2(posX, posY), particleSize);
-                }
-            }
         }
     }
 
     public InitializerData GetSpawnData()
     {
-        InitializerData data = new(spawnCount);
+        InitializerData data = new InitializerData(spawnCount);
 
         data.particleSize = particleSize;
 
