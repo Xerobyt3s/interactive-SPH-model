@@ -134,6 +134,8 @@ GameObject:
   - component: {fileID: 200790215}
   - component: {fileID: 200790214}
   - component: {fileID: 200790216}
+  - component: {fileID: 200790218}
+  - component: {fileID: 200790217}
   m_Layer: 0
   m_Name: simulation
   m_TagString: Untagged
@@ -148,7 +150,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 200790213}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f3295e4a500ebd342acc8997b2034d74, type: 3}
   m_Name: 
@@ -196,6 +198,43 @@ MonoBehaviour:
   spawnSize: {x: 8, y: 6}
   particleSize: 0.035
   randomness: 0.0025
+--- !u!114 &200790217
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 200790213}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 638922c6f6188f14fb46204721374745, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &200790218
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 200790213}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ba511dbff85a9fa4095dae989caa0857, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  boundsSize: {x: 10, y: 10}
+  gravity: 0
+  collisionDampening: 0.95
+  smoothingRadius: 0.35
+  targetDensity: 55
+  pressureMultiplyer: 30
+  nearPressureMultiplyer: 5
+  viscosityMultiplyer: 0.06
+  iterationsPerFrame: 1
+  mouseForce: 1
+  mouseRadius: 2
+  initializer: {fileID: 200790217}
+  shader: {fileID: 7200000, guid: d0ebc2e0f2545a44d82fd435a44661a7, type: 3}
 --- !u!1 &1108905939
 GameObject:
   m_ObjectHideFlags: 0
