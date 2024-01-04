@@ -2,6 +2,10 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using Palmmedia.ReportGenerator.Core.Parser.Analysis;
+using UnityEditor;
+using UnityEditor.VersionControl;
 using UnityEngine;
 
 public class spell_compiler : MonoBehaviour
@@ -10,16 +14,50 @@ public class spell_compiler : MonoBehaviour
     public void saveSpell(spell_components spell){
         // Save spell to file
         //TODO: Add path to save file + Add spellcomponents that are used to a json file 
+
     }
 
-    public void loadSpell(){
-        // Load spell from file
-        //TODO: Add spell execution depending on the spell components in the json file 
+    public List<string> loadSpell(string path)//Load spell from file and return a list of the spell components
+    {
+        string loadedSpell = File.ReadAllText(path);
+        List<string> spell = loadedSpell.Split('/').ToList();
+        return spell;
     }
+
+    public void executeSpell(List<string> spells) // Execute spells from the format "Component value value"
+    {
+        spell_components spell = new spell_components();
+        foreach (string component in spells)
+        {
+            string[] componentData = component.Split(' ');
+            switch (componentData[0])
+            {
+                case "Target":
+                    break;
+                case "AreaOfEffect":
+                    spell.AreaOfEffect(float.Parse(componentData[1]), float.Parse(componentData[2]));
+                    break;
+                case "Conjure":
+                    spell.Conjure();
+                    break;
+                case "Impulse":
+                    spell.Impulse(float.Parse(componentData[1]));
+                    Debug.Log(componentData[1]);
+                    break;
+                case "MassExodus":
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+
+
 
     // Start is called before the first frame update
     void Start()
     {
+        
     }
 
     // Update is called once per frame
@@ -27,10 +65,7 @@ public class spell_compiler : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.E))
         {
-            spell_components spell = new spell_components();
-            spell.AreaOfEffect(5, 0.25f);
-            spell.Conjure();
-            spell.Impulse(1000);
+            executeSpell(loadSpell("Assets/Spell_files/Test.txt"));
         }
     }
 }
@@ -80,6 +115,8 @@ public class spell_components : spell_compiler
         // Apply the impulse in the direction the player's camera is facing  
         target.GetComponent<Rigidbody>().AddForce(direction * force, ForceMode.Impulse);
     }
-    
+    public void MassExodus(float force, int direction){
+
+    }
 }
 

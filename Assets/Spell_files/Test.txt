@@ -1,0 +1,1 @@
+AreaOfEffect 5 0.25/Conjure/Impulse 10
