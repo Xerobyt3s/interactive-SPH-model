@@ -24,7 +24,7 @@ public class Gpu_Fluid_Sim : MonoBehaviour
     public Initializer initializer;
     Initializer.ParticleSpawnData particleData;
     public ComputeShader shader;
-    public ParticleDisplay2D display;
+    public smoothedParticleDisplayGpu display;
 
     float deltaTime = 0.01f;
 
@@ -50,6 +50,7 @@ public class Gpu_Fluid_Sim : MonoBehaviour
 
     void UpdateComputeVariables(float timeStep)
     {
+        // Set shader variables to there equivilent c# variables:
         shader.SetInt("particleCount", particleCount);
         shader.SetFloat("deltaTime", timeStep);
         shader.SetFloat("gravity", gravity);
@@ -85,6 +86,7 @@ public class Gpu_Fluid_Sim : MonoBehaviour
         shader.SetFloat("mouseRadius", mouseRadius);
     }
 
+    // Set the buffers data to the spawn data:
     void SetBufferData(Initializer.ParticleSpawnData spawnData)
     {
         float2[] allPoints = new float2[spawnData.positions.Length];
@@ -106,6 +108,7 @@ public class Gpu_Fluid_Sim : MonoBehaviour
 
         particleCount = particleData.positions.Length;
 
+        //create the buffers
         PositionsBuffer = ComputeHelper.CreateStructuredBuffer<float2>(particleCount);
         predictedPositionBuffer = ComputeHelper.CreateStructuredBuffer<float2>(particleCount);
         VelocitiesBuffer = ComputeHelper.CreateStructuredBuffer<float2>(particleCount);
@@ -115,6 +118,7 @@ public class Gpu_Fluid_Sim : MonoBehaviour
 
         SetBufferData(particleData);
 
+        //set the buffers
         ComputeHelper.SetBuffer(shader, PositionsBuffer, "positions", OutsideForceKernel, UpdateParticlePositionKernel);
         ComputeHelper.SetBuffer(shader, predictedPositionBuffer, "predictedPositions", OutsideForceKernel, UpdateSpatialLookUpKernel, CalculateDensitiesKernel, CalculatePressureForceKernel, CalculateViscosityKernel);
         ComputeHelper.SetBuffer(shader, spacialLookUp, "spacialLookUp", UpdateSpatialLookUpKernel, CalculateDensitiesKernel, CalculatePressureForceKernel, CalculateViscosityKernel);
@@ -147,6 +151,7 @@ public class Gpu_Fluid_Sim : MonoBehaviour
 
     void RunIteration()
     {
+        // Run the compute shader and dispatch the kernels:
         ComputeHelper.Dispatch(shader, particleCount, kernelIndex: OutsideForceKernel);
         ComputeHelper.Dispatch(shader, particleCount, kernelIndex: UpdateSpatialLookUpKernel);
         gpuSort.SortAndCalculateOffsets();

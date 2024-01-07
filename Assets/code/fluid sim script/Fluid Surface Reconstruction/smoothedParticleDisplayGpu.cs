@@ -1,7 +1,8 @@
 using UnityEngine;
 
-public class ParticleDisplay2D : MonoBehaviour
+public class smoothedParticleDisplayGpu : MonoBehaviour
 {
+    public bool Smoothing = false;
 	public Mesh mesh;
 	public Shader shader;
 	public float scale;
