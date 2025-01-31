@@ -6,7 +6,6 @@
 //#pragma kernel CalculateSurfaceTensionForce
 #pragma kernel UpdateParticlePosition
 
-#include "./FluidMaths2D.hlsl"
 #include "./spatialHash.hlsl"
 
 static const int3 Threads = int3(8, 8, 1);
@@ -36,30 +35,61 @@ const float2 mousePosition;
 const float mouseInputStrength;
 const float mouseRadius;
 
+const float Poly6ScalingFactor;
+const float SpikyPow3ScalingFactor;
+const float SpikyPow2ScalingFactor;
+const float SpikyPow3DerivativeScalingFactor;
+const float SpikyPow2DerivativeScalingFactor;
+
 //polynomial functions
 float DensityKernel(float dst, float radius)
 {
-	return SpikyKernelPow2(dst, radius);
+	if (dst < radius)
+	{
+		float v = radius - dst;
+		return v * v * SpikyPow2ScalingFactor;
+	}
+	return 0;
 }
 
 float NearDensityKernel(float dst, float radius)
 {
-	return SpikyKernelPow3(dst, radius);
+	if (dst < radius)
+	{
+		float v = radius - dst;
+		return v * v * v * SpikyPow3ScalingFactor;
+	}
+	return 0;
 }
 
 float DensityDerivative(float dst, float radius)
 {
-	return DerivativeSpikyPow2(dst, radius);
+	if (dst <= radius)
+	{
+		float v = radius - dst;
+		return -v * SpikyPow2DerivativeScalingFactor;
+	}
+	return 0;
 }
 
 float NearDensityDerivative(float dst, float radius)
 {
-	return DerivativeSpikyPow3(dst, radius);
+	if (dst <= radius)
+	{
+		float v = radius - dst;
+		return -v * v * SpikyPow3DerivativeScalingFactor;
+	}
+	return 0;
 }
 
 float ViscosityKernel(float dst, float radius)
 {
-	return SmoothingKernelPoly6(dst, smoothingRadius);
+	if (dst < radius)
+	{
+		float v = radius * radius - dst * dst;
+		return v * v * v * Poly6ScalingFactor;
+	}
+	return 0;
 }
 
 // Update the spacial lookup array to reflect the current positions of the particles
