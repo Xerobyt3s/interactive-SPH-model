@@ -1,18 +1,15 @@
-#pragma kernel OutsideForces
+#pragma kernel ExternalForces
 #pragma kernel UpdateSpatialLookUp
 #pragma kernel CalculateDensities
 #pragma kernel CalculatePressureForce
 #pragma kernel CalculateViscosity
-//#pragma kernel CalculateSurfaceTensionForce
 #pragma kernel UpdateParticlePosition
 
-#include "./spatialHash.hlsl"
+#include "./SpatialHash.hlsl" 
 
-static const int3 Threads = int3(8, 8, 1);
-
-RWStructuredBuffer<float2> positions;
-RWStructuredBuffer<float2> predictedPositions;
-RWStructuredBuffer<float2> velocities;
+RWStructuredBuffer<float3> positions;
+RWStructuredBuffer<float3> predictedPositions;
+RWStructuredBuffer<float3> velocities;
 RWStructuredBuffer<float2> densities;
 
 //used in my neighbour search algorithm
@@ -30,10 +27,14 @@ const float targetDensity;
 const float pressureMultiplier;
 const float nearPressureMultiplier;
 const float viscosityMultiplier;
-const float2 boundsSize;
+const float3 boundsSize;
+
 const float2 mousePosition;
 const float mouseInputStrength;
 const float mouseRadius;
+
+const float4x4 localToWorld;
+const float4x4 worldToLocal;
 
 const float Poly6ScalingFactor;
 const float SpikyPow3ScalingFactor;
@@ -103,22 +104,22 @@ void UpdateSpatialLookUp (uint3 id : SV_DispatchThreadID)
     
 	// Update index buffer
 	uint index = id.x;
-	int2 cell = GetCell(predictedPositions[index], smoothingRadius);
+	int3 cell = GetCell(predictedPositions[index], smoothingRadius);
 	uint hash = HashCell(cell);
 	uint key = KeyFromHash(hash, particleCount);
 	spacialLookUp[id.x] = uint3(index, hash, key);
 }
 
 
-float2 CalculateDensity(float2 pos)
+float2 CalculateDensity(float3 pos)
 {
-	int2 originCell = GetCell(pos, smoothingRadius);
+	int3 originCell = GetCell(pos, smoothingRadius);
 	float sqrRadius = smoothingRadius * smoothingRadius;
 	float density = 0;
 	float nearDensity = 0;
 
 	// Neighbour search
-	for (int i = 0; i < 9; i++)
+	for (int i = 0; i < 27; i++)
 	{
 		uint hash = HashCell(originCell + offsets[i]);
 		uint key = KeyFromHash(hash, particleCount);
@@ -134,8 +135,8 @@ float2 CalculateDensity(float2 pos)
 			if (indexData[1] != hash) continue;
 
 			uint neighbourIndex = indexData[0];
-			float2 neighbourPos = predictedPositions[neighbourIndex];
-			float2 offsetToNeighbour = neighbourPos - pos;
+			float3 neighbourPos = predictedPositions[neighbourIndex];
+			float3 offsetToNeighbour = neighbourPos - pos;
 			float sqrDstToNeighbour = dot(offsetToNeighbour, offsetToNeighbour);
 
 			// Skip if not within radius
@@ -156,7 +157,7 @@ void CalculateDensities (uint3 id : SV_DispatchThreadID)
 {
 	if (id.x >= particleCount) return;
 
-	float2 position = predictedPositions[id.x];
+	float3 position = predictedPositions[id.x];
 	densities[id.x] = CalculateDensity(position);
 }
 
@@ -179,14 +180,14 @@ void CalculatePressureForce (uint3 id : SV_DispatchThreadID)
 	float densityNear = densities[id.x][1];
 	float pressure = CalculatePressure(density);
 	float nearPressure = CalculateNearPressure(densityNear);
-	float2 pressureForce = 0;
+	float3 pressureForce = 0;
 	
-	float2 pos = predictedPositions[id.x];
-	int2 originCell = GetCell(pos, smoothingRadius);
+	float3 pos = predictedPositions[id.x];
+	int3 originCell = GetCell(pos, smoothingRadius);
 	float sqrRadius = smoothingRadius * smoothingRadius;
 
 	// Neighbour search
-	for (int i = 0; i < 9; i ++)
+	for (int i = 0; i < 27; i ++)
 	{
 		uint hash = HashCell(originCell + offsets[i]);
 		uint key = KeyFromHash(hash, particleCount);
@@ -205,8 +206,8 @@ void CalculatePressureForce (uint3 id : SV_DispatchThreadID)
 			// Skip if looking at self
 			if (neighbourIndex == id.x) continue;
 
-			float2 neighbourPos = predictedPositions[neighbourIndex];
-			float2 offsetToNeighbour = neighbourPos - pos;
+			float3 neighbourPos = predictedPositions[neighbourIndex];
+			float3 offsetToNeighbour = neighbourPos - pos;
 			float sqrDstToNeighbour = dot(offsetToNeighbour, offsetToNeighbour);
 
 			// Skip if not within radius
@@ -214,7 +215,7 @@ void CalculatePressureForce (uint3 id : SV_DispatchThreadID)
 
 			// Calculate pressure force
 			float dst = sqrt(sqrDstToNeighbour);
-			float2 dirToNeighbour = dst > 0 ? offsetToNeighbour / dst : float2(0, 1);
+			float3 dirToNeighbour = dst > 0 ? offsetToNeighbour / dst : float3(0, 1, 0);
 
 			float neighbourDensity = densities[neighbourIndex][0];
 			float neighbourNearDensity = densities[neighbourIndex][1];
@@ -229,7 +230,7 @@ void CalculatePressureForce (uint3 id : SV_DispatchThreadID)
 		}
 	}
 
-	float2 acceleration = pressureForce / density;
+	float3 acceleration = pressureForce / density;
 	velocities[id.x] += acceleration * deltaTime;//
 }
 
@@ -238,15 +239,15 @@ void CalculateViscosity (uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= particleCount) return;
 
-    float2 force = 0;
+    float3 force = 0;
 
-    float2 position = predictedPositions[id.x];
+    float3 position = predictedPositions[id.x];
 
     //find the cell cords of the point
-    int2 cell = GetCell(position, smoothingRadius);
+    int3 cell = GetCell(position, smoothingRadius);
     float radiusSquared = smoothingRadius * smoothingRadius;
 
-    for (int i = 0; i < 9; i ++)
+    for (int i = 0; i < 27; i ++)
     {
         uint hash = HashCell(cell + offsets[i]);
         uint cellKey = KeyFromHash(hash, particleCount);
@@ -266,7 +267,7 @@ void CalculateViscosity (uint3 id : SV_DispatchThreadID)
 
             if (NeighbourParticleIndex == id.x) continue;
 
-            float2 offsetToNeighbour = predictedPositions[NeighbourParticleIndex] - position;
+            float3 offsetToNeighbour = predictedPositions[NeighbourParticleIndex] - position;
             float distanceSquared = dot(offsetToNeighbour, offsetToNeighbour); 
 
             //check if the particle is in the radius
@@ -281,62 +282,43 @@ void CalculateViscosity (uint3 id : SV_DispatchThreadID)
 
 void CheckCollisions(uint particleIndex)
 {
-    float2 pos = positions[particleIndex];
-    float2 vel = velocities[particleIndex];
+    // Transform position/velocity to the local space of the bounding box (scale not included)
+	float3 posLocal = mul(worldToLocal, float4(positions[particleIndex], 1)).xyz;
+	float3 velocityLocal = mul(worldToLocal, float4(velocities[particleIndex], 0)).xyz;
 
-    // Keep particle inside bounds
-    float2 halfSize = boundsSize * 0.5f;
-    float2 edgeDst = halfSize - abs(pos);
+	// Calculate distance from box on each axis (negative values are inside box)
+	const float3 halfSize = 0.5;
+	const float3 edgeDst = halfSize - abs(posLocal);
 
-    if (edgeDst.x <= 0)
-    {
-        pos.x = halfSize.x * sign(pos.x);
-        vel.x *= -1 * collisionDampening;
-    }
-    if (edgeDst.y <= 0)
-    {
-        pos.y = halfSize.y * sign(pos.y);
-        vel.y *= -1 * collisionDampening;
-    }
-
-    // Update position and velocity
-    positions[particleIndex] = pos;
-    velocities[particleIndex] = vel;
-}
-
-float2 OutsideForces(float2 position, float2 velocity)
-{
-	// Gravity constant as a vector
-	float2 gravityAccel = float2(0, -gravity);
-	
-	// mouse interaction
-	if (mouseInputStrength != 0) {
-		float2 mousePositionOffset = mousePosition - position;
-		float distanceSquared = dot(mousePositionOffset, mousePositionOffset);
-		if (distanceSquared < mouseRadius * mouseRadius)
-		{
-			float distance = sqrt(distanceSquared);
-			float edgeT = (distance / mouseRadius);
-			float centreT = 1 - edgeT;
-			float2 directionToCentre = mousePositionOffset / distance;
-
-			float gravityWeight = 1 - (centreT * saturate(mouseInputStrength / 10));
-			float2 accel = gravityAccel * gravityWeight + directionToCentre * centreT * mouseInputStrength;
-			accel -= velocity * centreT;
-			return accel;
-		}
+	// Resolve collisions
+	if (edgeDst.x <= 0)
+	{
+		posLocal.x = halfSize.x * sign(posLocal.x);
+		velocityLocal.x *= -1 * collisionDampening;
+	}
+	if (edgeDst.y <= 0)
+	{
+		posLocal.y = halfSize.y * sign(posLocal.y);
+		velocityLocal.y *= -1 * collisionDampening;
+	}
+	if (edgeDst.z <= 0)
+	{
+		posLocal.z = halfSize.z * sign(posLocal.z);
+		velocityLocal.z *= -1 * collisionDampening;
 	}
 
-	return gravityAccel;
+	// Transform resolved position/velocity back to world space
+	positions[particleIndex] = mul(localToWorld, float4(posLocal, 1)).xyz;
+	velocities[particleIndex] = mul(localToWorld, float4(velocityLocal, 0)).xyz;
 }
 
 [numthreads(64, 1, 1)]
-void OutsideForces(uint3 id : SV_DispatchThreadID)
+void ExternalForces(uint3 id : SV_DispatchThreadID)
 {
 	if (id.x >= particleCount) return;
 
 	// apply outside forces such as gravity and the mouse interaction
-	velocities[id.x] += OutsideForces(positions[id.x], velocities[id.x]) * deltaTime;
+	velocities[id.x] += float3(0, -gravity, 0) * deltaTime;
 
 	// update predicted positions
 	const float predictionFactor = 1 / 120.0;
