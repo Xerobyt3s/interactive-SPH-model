@@ -38,7 +38,6 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 0}
-  m_IndirectSpecularColor: {r: 0.37311953, g: 0.38074014, b: 0.3587274, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -184,7 +183,7 @@ Camera:
   far clip plane: 1000
   field of view: 60
   orthographic: 1
-  orthographic size: 13.7
+  orthographic size: 3.4
   m_Depth: -1
   m_CullingMask:
     serializedVersion: 2
@@ -208,13 +207,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 427975998}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: -10}
+  m_LocalRotation: {x: 0.09409332, y: -0.04628952, z: 0.0043797237, w: 0.99447703}
+  m_LocalPosition: {x: 0.931, y: 2.045, z: -9.925}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 10.81, y: -5.33, z: 0}
 --- !u!1 &2023859844
 GameObject:
   m_ObjectHideFlags: 0
@@ -225,7 +224,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2023859847}
   - component: {fileID: 2023859846}
-  - component: {fileID: 2023859845}
+  - component: {fileID: 2023859849}
   - component: {fileID: 2023859848}
   m_Layer: 0
   m_Name: simulation
@@ -234,24 +233,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &2023859845
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2023859844}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f6a89e0edf8af744a9ca6c58462d14ed, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  particleCount: 75458
-  initialVelocity: {x: 0, y: 0}
-  spawnCentre: {x: 0, y: 0}
-  spawnSize: {x: 45.1, y: 19.4}
-  jitterStr: 0.0025
-  showSpawnBoundsGizmos: 1
 --- !u!114 &2023859846
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -264,20 +245,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ba511dbff85a9fa4095dae989caa0857, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  boundsSize: {x: 54.6, y: 27}
   gravity: 12
-  collisionDampening: 0.35
-  smoothingRadius: 0.5
-  targetDensity: 50.2
-  pressureMultiplyer: 500
-  nearPressureMultiplyer: 18
-  viscosityMultiplyer: 0.06
-  iterationsPerFrame: 7
-  mouseForce: 90
-  mouseRadius: 2
-  initializer: {fileID: 2023859845}
+  collisionDampening: 0.95
+  smoothingRadius: 0.2
+  targetDensity: 630
+  pressureMultiplyer: 288
+  nearPressureMultiplyer: 2.25
+  viscosityMultiplyer: 0.001
+  iterationsPerFrame: 3
+  mouseForce: 100
+  mouseRadius: 5
+  initializer: {fileID: 2023859848}
   shader: {fileID: 7200000, guid: d0ebc2e0f2545a44d82fd435a44661a7, type: 3}
-  display: {fileID: 2023859848}
+  display: {fileID: 2023859849}
 --- !u!4 &2023859847
 Transform:
   m_ObjectHideFlags: 0
@@ -288,7 +268,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 8, y: 5, z: 5}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -302,16 +282,38 @@ MonoBehaviour:
   m_GameObject: {fileID: 2023859844}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6304b54a2a7ad4c8881eeaf09ed350f5, type: 3}
+  m_Script: {fileID: 11500000, guid: d32a6bc36c7b2c142bba4500b2b4038d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  mesh: {fileID: 10210, guid: 0000000000000000e000000000000000, type: 0}
-  shader: {fileID: 4800000, guid: cc7d22b2494e64d3a8230d8b24af7f2d, type: 3}
-  scale: 0.5
+  numParticlesPerAxis: 35
+  centre: {x: 0, y: 0, z: 0}
+  size: 3.7
+  initialVel:
+    x: 0
+    y: 0
+    z: 0
+  jitterStrength: 0.035
+  showSpawnBounds: 1
+  debug_numParticles: 42875
+--- !u!114 &2023859849
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2023859844}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: da5e368238c24274b9a7bff46f3fa165, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  shader: {fileID: 4800000, guid: 2f224096dfb05104db620e2cdab9c31c, type: 3}
+  scale: 0.05
+  col: {r: 0, g: 0.23312998, b: 1, a: 0}
   colourMap:
     serializedVersion: 2
-    key0: {r: 0.046485543, g: 0, b: 0.9811321, a: 1}
-    key1: {r: 0.55998576, g: 0.646014, b: 0.9811321, a: 1}
+    key0: {r: 0, g: 0.35063305, b: 0.990566, a: 1}
+    key1: {r: 1, g: 1, b: 1, a: 1}
     key2: {r: 0, g: 0, b: 0, a: 0}
     key3: {r: 0, g: 0, b: 0, a: 0}
     key4: {r: 0, g: 0, b: 0, a: 0}
@@ -338,8 +340,10 @@ MonoBehaviour:
     m_ColorSpace: -1
     m_NumColorKeys: 2
     m_NumAlphaKeys: 2
-  gradientResolution: 64
-  velocityDisplayMax: 6.5
+  gradientResolution: 50
+  velocityDisplayMax: 6
+  meshResolution: 3
+  debug_MeshTriCount: 128
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
