@@ -1,5 +1,7 @@
 #pragma kernel ExternalForces
 #pragma kernel UpdateSpatialLookUp
+#pragma kernel Reorder_sort
+#pragma kernel Reorder_origin
 #pragma kernel CalculateDensities
 #pragma kernel CalculatePressureForce
 #pragma kernel CalculateViscosity
@@ -13,7 +15,9 @@ RWStructuredBuffer<float3> velocities;
 RWStructuredBuffer<float2> densities;
 
 //used in my neighbour search algorithm
-RWStructuredBuffer<uint3> spacialLookUp;
+//RWStructuredBuffer<uint3> spacialLookUp;
+RWStructuredBuffer<uint> spatialKeys;
+RWStructuredBuffer<uint> spatialindices;
 RWStructuredBuffer<int> startIndecies;
 
 
@@ -94,24 +98,54 @@ float ViscosityKernel(float dst, float radius)
 }
 
 // Update the spacial lookup array to reflect the current positions of the particles
-[numthreads(64, 1, 1)]
+[numthreads(256, 1, 1)]
 void UpdateSpatialLookUp (uint3 id : SV_DispatchThreadID)
 {
 	if (id.x >= particleCount) return;
 
 	// Reset offsets
-	startIndecies[id.x] = particleCount;
+	
     
 	// Update index buffer
-	uint index = id.x;
+	int index = id.x;
 	int3 cell = GetCell(predictedPositions[index], smoothingRadius);
 	uint hash = HashCell(cell);
 	uint key = KeyFromHash(hash, particleCount);
-	spacialLookUp[id.x] = uint3(index, hash, key);
+	//spacialLookUp[id.x] = uint3(index, hash, key);
+
+	spatialKeys[id.x] = key;
+	spatialindices[id.x] = id.x;
+	startIndecies[id.x] = particleCount;
+}
+
+RWStructuredBuffer<float3> SortTarget_Positions;
+RWStructuredBuffer<float3> SortTarget_PredictedPositions;
+RWStructuredBuffer<float3> SortTarget_Velocities;
+
+[numthreads(256, 1, 1)]
+void Reorder_sort(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= particleCount)
+        return;
+    uint sortedIndex = spatialindices[id.x];
+    SortTarget_Positions[id.x] = positions[sortedIndex];
+    SortTarget_PredictedPositions[id.x] = predictedPositions[sortedIndex];
+    SortTarget_Velocities[id.x] = velocities[sortedIndex];
+}
+
+[numthreads(256, 1, 1)]
+void Reorder_origin(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= particleCount)
+        return;
+
+    positions[id.x] = SortTarget_Positions[id.x];
+    predictedPositions[id.x] = SortTarget_PredictedPositions[id.x];
+    velocities[id.x] = SortTarget_Velocities[id.x];
 }
 
 
-float2 CalculateDensity(float3 pos)
+float2 CalculateDensity(float3 pos) //done i think
 {
 	int3 originCell = GetCell(pos, smoothingRadius);
 	float sqrRadius = smoothingRadius * smoothingRadius;
@@ -127,14 +161,14 @@ float2 CalculateDensity(float3 pos)
 
 		while (currIndex < particleCount)
 		{
-			uint3 indexData = spacialLookUp[currIndex];
+			uint neighbourIndex = currIndex;
 			currIndex++;
-			// Exit if no longer looking at correct bin
-			if (indexData[2] != key) break;
-			// Skip if hash does not match
-			if (indexData[1] != hash) continue;
 
-			uint neighbourIndex = indexData[0];
+			uint neighbourKey = spatialKeys[neighbourIndex];
+			// Exit if no longer looking at correct bin
+			if (neighbourKey != key) break;
+			// Skip if hash does not match
+
 			float3 neighbourPos = predictedPositions[neighbourIndex];
 			float3 offsetToNeighbour = neighbourPos - pos;
 			float sqrDstToNeighbour = dot(offsetToNeighbour, offsetToNeighbour);
@@ -152,7 +186,7 @@ float2 CalculateDensity(float3 pos)
 	return float2(density, nearDensity);
 }
 
-[numthreads(64, 1, 1)]
+[numthreads(256, 1, 1)]
 void CalculateDensities (uint3 id : SV_DispatchThreadID)
 {
 	if (id.x >= particleCount) return;
@@ -171,7 +205,7 @@ float CalculateNearPressure(float nearDensity)
     return nearPressureMultiplier * nearDensity;
 }
 
-[numthreads(64, 1, 1)]
+[numthreads(256, 1, 1)]
 void CalculatePressureForce (uint3 id : SV_DispatchThreadID)
 {
 	if (id.x >= particleCount) return;
@@ -181,10 +215,12 @@ void CalculatePressureForce (uint3 id : SV_DispatchThreadID)
 	float pressure = CalculatePressure(density);
 	float nearPressure = CalculateNearPressure(densityNear);
 	float3 pressureForce = 0;
+	float3 velocity = velocities[id.x];
 	
 	float3 pos = predictedPositions[id.x];
 	int3 originCell = GetCell(pos, smoothingRadius);
 	float sqrRadius = smoothingRadius * smoothingRadius;
+	int neighbourCount = 0;
 
 	// Neighbour search
 	for (int i = 0; i < 27; i ++)
@@ -195,16 +231,15 @@ void CalculatePressureForce (uint3 id : SV_DispatchThreadID)
 
 		while (currIndex < particleCount)
 		{
-			uint3 indexData = spacialLookUp[currIndex];
+			uint neighbourIndex = currIndex;
 			currIndex ++;
-			// Exit if no longer looking at correct bin
-			if (indexData[2] != key) break;
-			// Skip if hash does not match
-			if (indexData[1] != hash) continue;
 
-			uint neighbourIndex = indexData[0];
 			// Skip if looking at self
 			if (neighbourIndex == id.x) continue;
+
+			uint neighbourKey = spatialKeys[neighbourIndex];
+			// Exit if no longer looking at correct bin
+			if (neighbourKey != key) break;
 
 			float3 neighbourPos = predictedPositions[neighbourIndex];
 			float3 offsetToNeighbour = neighbourPos - pos;
@@ -216,6 +251,7 @@ void CalculatePressureForce (uint3 id : SV_DispatchThreadID)
 			// Calculate pressure force
 			float dst = sqrt(sqrDstToNeighbour);
 			float3 dirToNeighbour = dst > 0 ? offsetToNeighbour / dst : float3(0, 1, 0);
+			neighbourCount++;
 
 			float neighbourDensity = densities[neighbourIndex][0];
 			float neighbourNearDensity = densities[neighbourIndex][1];
@@ -231,17 +267,22 @@ void CalculatePressureForce (uint3 id : SV_DispatchThreadID)
 	}
 
 	float3 acceleration = pressureForce / density;
-	velocities[id.x] += acceleration * deltaTime;//
+	velocities[id.x] = velocity + acceleration * deltaTime;
+
+    if (neighbourCount < 8)
+    {
+        velocities[id.x] -= velocities[id.x] * deltaTime * 0.75;
+    }
 }
 
-[numthreads(64, 1, 1)]
+[numthreads(256, 1, 1)]
 void CalculateViscosity (uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= particleCount) return;
 
     float3 force = 0;
-
     float3 position = predictedPositions[id.x];
+	float3 velocity = velocities[id.x];
 
     //find the cell cords of the point
     int3 cell = GetCell(position, smoothingRadius);
@@ -256,25 +297,23 @@ void CalculateViscosity (uint3 id : SV_DispatchThreadID)
         //loop over all particles in the cell
         while (searchIndex < particleCount)
         {
+			uint neighbourIndex = searchIndex;
             searchIndex++;
 
+			uint neighbourKey = spatialKeys[neighbourIndex];
             //break if the cell key changes
-            if (spacialLookUp[searchIndex][2] != cellKey) break;
+            if (neighbourKey != cellKey) break;
 
-            if (spacialLookUp[searchIndex][1] != hash)    continue;
+            if (neighbourIndex == id.x) continue;
 
-            int NeighbourParticleIndex = spacialLookUp[searchIndex][0];
-
-            if (NeighbourParticleIndex == id.x) continue;
-
-            float3 offsetToNeighbour = predictedPositions[NeighbourParticleIndex] - position;
+            float3 offsetToNeighbour = predictedPositions[neighbourIndex] - position;
             float distanceSquared = dot(offsetToNeighbour, offsetToNeighbour); 
 
             //check if the particle is in the radius
             if (distanceSquared > radiusSquared) continue;
                 
             //calculate the force
-            force += (velocities[NeighbourParticleIndex] - velocities[id.x]) * ViscosityKernel(sqrt(distanceSquared), smoothingRadius);
+            force += (velocities[neighbourIndex] - velocity) * ViscosityKernel(sqrt(distanceSquared), smoothingRadius);
         }
     }
     velocities[id.x] += force * viscosityMultiplier * deltaTime;
@@ -312,7 +351,7 @@ void CheckCollisions(uint particleIndex)
 	velocities[particleIndex] = mul(localToWorld, float4(velocityLocal, 0)).xyz;
 }
 
-[numthreads(64, 1, 1)]
+[numthreads(256, 1, 1)]
 void ExternalForces(uint3 id : SV_DispatchThreadID)
 {
 	if (id.x >= particleCount) return;
@@ -326,7 +365,7 @@ void ExternalForces(uint3 id : SV_DispatchThreadID)
 }
 
 // Update the positions of the particles
-[numthreads(64, 1, 1)]
+[numthreads(256, 1, 1)]
 void UpdateParticlePosition(uint3 id : SV_DispatchThreadID)
 {
 	if (id.x >= particleCount) return;

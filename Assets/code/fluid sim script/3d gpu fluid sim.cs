@@ -1,5 +1,8 @@
 using UnityEngine;
 using Unity.Mathematics;
+using UnityEngine.SocialPlatforms;
+using System.Collections.Generic;
+using Seb.GPUSorting;
 
 
 public class Gpu_Fluid_Sim : MonoBehaviour
@@ -33,22 +36,31 @@ public class Gpu_Fluid_Sim : MonoBehaviour
     ComputeBuffer predictedPositionBuffer;
     public ComputeBuffer VelocitiesBuffer { get; private set;}
     public ComputeBuffer DensitiesBuffer { get; private set;}
-    ComputeBuffer spacialLookUp;
-    ComputeBuffer startIndecies;
-    GPUSort gpuSort;
+    //ComputeBuffer spacialLookUp;
+    public ComputeBuffer spatialKeys { get; private set; }
+    public ComputeBuffer spatialindices { get; private set; }
+    public ComputeBuffer startIndecies { get; private set; }
+    ComputeBuffer sortTarget_positionBuffer;
+	ComputeBuffer sortTarget_velocityBuffer;
+	ComputeBuffer sortTarget_predictedPositionsBuffer;
+    GPUCountSort gpuSort;
+    SpatialOffsetCalculator spatialOffsetsCalc;
 
     //state
     bool isPaused;
     bool pausedNextFrame;
     Spawner3D.SpawnData spawnData;
+    Dictionary<ComputeBuffer, string> bufferNameLookup;
 
     //kernal id
     const int OutsideForceKernel = 0;
     const int UpdateSpatialLookUpKernel = 1;
-    const int CalculateDensitiesKernel = 2;
-    const int CalculatePressureForceKernel = 3;
-    const int CalculateViscosityKernel = 4;
-    const int UpdateParticlePositionKernel = 5;
+    const int Reorder_sortKernel = 2;
+    const int Reorder_originKernel = 3;
+    const int CalculateDensitiesKernel = 4;
+    const int CalculatePressureForceKernel = 5;
+    const int CalculateViscosityKernel = 6;
+    const int UpdateParticlePositionKernel = 7;
 
 
     void UpdateComputeVariables(float timeStep)
@@ -82,11 +94,11 @@ public class Gpu_Fluid_Sim : MonoBehaviour
     // Set the buffers data to the spawn data:
     void SetBufferData(Spawner3D.SpawnData spawnData)
     {
-        float3[] allPoints = new float3[spawnData.points.Length];
-        System.Array.Copy(spawnData.points, allPoints, spawnData.points.Length);
+        //float3[] allPoints = new float3[spawnData.points.Length];
+        //System.Array.Copy(spawnData.points, allPoints, spawnData.points.Length);
 
-        PositionsBuffer.SetData(allPoints);
-        predictedPositionBuffer.SetData(allPoints);
+        PositionsBuffer.SetData(spawnData.points);
+        predictedPositionBuffer.SetData(spawnData.points);
         VelocitiesBuffer.SetData(spawnData.velocities);
     }
 
@@ -106,23 +118,33 @@ public class Gpu_Fluid_Sim : MonoBehaviour
         predictedPositionBuffer = ComputeHelper.CreateStructuredBuffer<float3>(particleCount);
         VelocitiesBuffer = ComputeHelper.CreateStructuredBuffer<float3>(particleCount);
         DensitiesBuffer = ComputeHelper.CreateStructuredBuffer<float2>(particleCount);
-        spacialLookUp = ComputeHelper.CreateStructuredBuffer<uint3>(particleCount);
+        //spacialLookUp = ComputeHelper.CreateStructuredBuffer<uint3>(particleCount);
+        spatialKeys = ComputeHelper.CreateStructuredBuffer<uint>(particleCount);
+        spatialindices = ComputeHelper.CreateStructuredBuffer<uint>(particleCount);
         startIndecies = ComputeHelper.CreateStructuredBuffer<uint>(particleCount);
+
+        sortTarget_positionBuffer = ComputeHelper.CreateStructuredBuffer<float3>(particleCount);
+		sortTarget_predictedPositionsBuffer = ComputeHelper.CreateStructuredBuffer<float3>(particleCount);
+		sortTarget_velocityBuffer = ComputeHelper.CreateStructuredBuffer<float3>(particleCount);
 
         SetBufferData(spawnData);
 
         //set the buffers
-        ComputeHelper.SetBuffer(shader, PositionsBuffer, "positions", OutsideForceKernel, UpdateParticlePositionKernel);
-        ComputeHelper.SetBuffer(shader, predictedPositionBuffer, "predictedPositions", OutsideForceKernel, UpdateSpatialLookUpKernel, CalculateDensitiesKernel, CalculatePressureForceKernel, CalculateViscosityKernel, UpdateParticlePositionKernel);
-        ComputeHelper.SetBuffer(shader, spacialLookUp, "spacialLookUp", UpdateSpatialLookUpKernel, CalculateDensitiesKernel, CalculatePressureForceKernel, CalculateViscosityKernel);
+        ComputeHelper.SetBuffer(shader, PositionsBuffer, "positions", OutsideForceKernel, UpdateParticlePositionKernel, Reorder_sortKernel, Reorder_originKernel);
+        ComputeHelper.SetBuffer(shader, predictedPositionBuffer, "predictedPositions", OutsideForceKernel, UpdateSpatialLookUpKernel, CalculateDensitiesKernel, CalculatePressureForceKernel, CalculateViscosityKernel, UpdateParticlePositionKernel, Reorder_sortKernel, Reorder_originKernel);
+        ComputeHelper.SetBuffer(shader, spatialKeys, "spatialKeys", UpdateSpatialLookUpKernel, CalculateDensitiesKernel, CalculatePressureForceKernel, CalculateViscosityKernel);
+        ComputeHelper.SetBuffer(shader, spatialindices, "spatialindices", Reorder_sortKernel, Reorder_originKernel, UpdateSpatialLookUpKernel, CalculateDensitiesKernel, CalculatePressureForceKernel, CalculateViscosityKernel);
         ComputeHelper.SetBuffer(shader, startIndecies, "startIndecies", UpdateSpatialLookUpKernel, CalculateDensitiesKernel, CalculatePressureForceKernel, CalculateViscosityKernel);
         ComputeHelper.SetBuffer(shader, DensitiesBuffer, "densities", CalculateDensitiesKernel, CalculatePressureForceKernel, CalculateViscosityKernel);
-        ComputeHelper.SetBuffer(shader, VelocitiesBuffer, "velocities", OutsideForceKernel, CalculatePressureForceKernel, CalculateViscosityKernel, UpdateParticlePositionKernel);
+        ComputeHelper.SetBuffer(shader, VelocitiesBuffer, "velocities", OutsideForceKernel, CalculatePressureForceKernel, CalculateViscosityKernel, UpdateParticlePositionKernel, Reorder_originKernel, Reorder_sortKernel);
+        ComputeHelper.SetBuffer(shader, sortTarget_positionBuffer, "SortTarget_Positions", Reorder_sortKernel, Reorder_originKernel);
+        ComputeHelper.SetBuffer(shader, sortTarget_predictedPositionsBuffer, "SortTarget_PredictedPositions", Reorder_sortKernel, Reorder_originKernel);
+        ComputeHelper.SetBuffer(shader, sortTarget_velocityBuffer, "SortTarget_Velocities", Reorder_sortKernel, Reorder_originKernel);
 
         shader.SetInt("particleCount", PositionsBuffer.count);
 
-        gpuSort = new();
-        gpuSort.SetBuffers(spacialLookUp, startIndecies);
+        gpuSort = new GPUCountSort(spatialKeys, spatialindices, (uint)(spatialKeys.count - 1));
+        spatialOffsetsCalc = new SpatialOffsetCalculator(spatialKeys, startIndecies);
 
         display.Init(this);
     }
@@ -130,12 +152,17 @@ public class Gpu_Fluid_Sim : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        RunFrame();
+        //RunFrame(Time.deltaTime);
     }
 
-    void RunFrame()
+    void FixedUpdate()
     {
-        float timeStep = Time.deltaTime / iterationsPerFrame;
+        RunFrame(Time.fixedDeltaTime);
+    }
+
+    void RunFrame(float timeScale)
+    {
+        float timeStep = timeScale / iterationsPerFrame;
 
         UpdateComputeVariables(timeStep);
 
@@ -146,8 +173,13 @@ public class Gpu_Fluid_Sim : MonoBehaviour
     {
         // Run the compute shader and dispatch the kernels:
         ComputeHelper.Dispatch(shader, PositionsBuffer.count, kernelIndex: OutsideForceKernel);
+
         ComputeHelper.Dispatch(shader, PositionsBuffer.count, kernelIndex: UpdateSpatialLookUpKernel);
-        gpuSort.SortAndCalculateOffsets();
+        gpuSort.Run();
+        spatialOffsetsCalc.Run(false);
+        ComputeHelper.Dispatch(shader, PositionsBuffer.count, kernelIndex: Reorder_sortKernel);
+        ComputeHelper.Dispatch(shader, PositionsBuffer.count, kernelIndex: Reorder_originKernel);
+
         ComputeHelper.Dispatch(shader, PositionsBuffer.count, kernelIndex: CalculateDensitiesKernel);
         ComputeHelper.Dispatch(shader, PositionsBuffer.count, kernelIndex: CalculatePressureForceKernel);
         ComputeHelper.Dispatch(shader, PositionsBuffer.count, kernelIndex: CalculateViscosityKernel);
@@ -156,7 +188,7 @@ public class Gpu_Fluid_Sim : MonoBehaviour
 
     void OnDestroy()
     {
-        ComputeHelper.Release(PositionsBuffer, predictedPositionBuffer, VelocitiesBuffer, DensitiesBuffer, spacialLookUp, startIndecies);
+        ComputeHelper.Release(PositionsBuffer, predictedPositionBuffer, VelocitiesBuffer, DensitiesBuffer, spatialKeys, spatialindices, startIndecies);
     }
 
     void OnDrawGizmos()
