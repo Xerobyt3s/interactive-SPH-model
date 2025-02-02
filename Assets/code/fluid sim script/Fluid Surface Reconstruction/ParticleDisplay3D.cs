@@ -3,7 +3,9 @@ using UnityEngine;
 public class ParticleDisplay3D : MonoBehaviour
 {
 
-    public Shader shader;
+    public Shader shader3d;
+    public Shader shader2d;
+    public bool Render_2d;
     public float scale;
     Mesh mesh;
     public Color col;
@@ -23,11 +25,19 @@ public class ParticleDisplay3D : MonoBehaviour
 
     public void Init(Gpu_Fluid_Sim sim)
     {
-        mat = new Material(shader);
+        if (!Render_2d)
+        {
+            mat = new Material(shader3d);
+            mesh = SebStuff.SphereGenerator.GenerateSphereMesh(meshResolution);
+        } else
+        {
+            mat = new Material(shader2d);
+            mesh = Seb.Helpers.QuadGenerator.GenerateQuadMesh();
+        }
+
         mat.SetBuffer("Positions", sim.PositionsBuffer);
         mat.SetBuffer("Velocities", sim.VelocitiesBuffer);
 
-        mesh = SebStuff.SphereGenerator.GenerateSphereMesh(meshResolution);
         debug_MeshTriCount = mesh.triangles.Length / 3;
         argsBuffer = ComputeHelper.CreateArgsBuffer(mesh, sim.PositionsBuffer.count);
         bounds = new Bounds(Vector3.zero, Vector3.one * 10000);
